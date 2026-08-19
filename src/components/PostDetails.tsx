@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import { Post } from '../types/Post';
 import { Comment } from '../types/Comment';
 import { client } from '../utils/fetchClient';
@@ -12,26 +13,33 @@ interface Props {
 export const PostDetails: React.FC<Props> = ({ post }) => {
   const [comments, setComments] = useState<Comment[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [hasError, setHasError] = useState(false);
+  const [hasLoadingError, setHasLoadingError] = useState(false);
+  const [hasDeleteError, setHasDeleteError] = useState(false);
   const [isFormVisible, setIsFormVisible] = useState(false);
 
   useEffect(() => {
     setIsLoading(true);
-    setHasError(false);
+    setHasLoadingError(false);
+    setHasDeleteError(false);
     setIsFormVisible(false);
 
     client
       .get<Comment[]>(`/comments?postId=${post.id}`)
       .then(setComments)
-      .catch(() => setHasError(true))
+      .catch(() => setHasLoadingError(true))
       .finally(() => setIsLoading(false));
   }, [post.id]);
 
-  const handleDeleteComment = (commentId: number) => {
-    setComments(prev => prev.filter(c => c.id !== commentId));
+  const handleDeleteComment = (commentToDelete: Comment) => {
+    setHasDeleteError(false);
 
-    client.delete(`/comments/${commentId}`).catch(() => {
-      setHasError(true);
+    // Optimistically remove comment
+    setComments(prev => prev.filter(c => c.id !== commentToDelete.id));
+
+    client.delete(`/comments/${commentToDelete.id}`).catch(() => {
+      // Revert optimism on error
+      setComments(prev => [...prev, commentToDelete]);
+      setHasDeleteError(true);
     });
   };
 
@@ -51,19 +59,25 @@ export const PostDetails: React.FC<Props> = ({ post }) => {
       <div className="block">
         {isLoading && <Loader />}
 
-        {hasError && (
+        {hasLoadingError && (
           <div className="notification is-danger" data-cy="CommentsError">
             Something went wrong
           </div>
         )}
 
-        {!isLoading && !hasError && comments.length === 0 && (
+        {hasDeleteError && (
+          <div className="notification is-danger" data-cy="DeleteCommentError">
+            Unable to delete comment. Please try again.
+          </div>
+        )}
+
+        {!isLoading && !hasLoadingError && comments.length === 0 && (
           <p className="title is-4" data-cy="NoCommentsMessage">
             No comments yet
           </p>
         )}
 
-        {!isLoading && !hasError && comments.length > 0 && (
+        {!isLoading && !hasLoadingError && comments.length > 0 && (
           <>
             <p className="title is-4">Comments:</p>
 
@@ -82,7 +96,7 @@ export const PostDetails: React.FC<Props> = ({ post }) => {
                     type="button"
                     className="delete is-small"
                     aria-label="delete"
-                    onClick={() => handleDeleteComment(comment.id)}
+                    onClick={() => handleDeleteComment(comment)}
                   />
                 </div>
                 <div className="message-body" data-cy="CommentBody">
@@ -93,7 +107,7 @@ export const PostDetails: React.FC<Props> = ({ post }) => {
           </>
         )}
 
-        {!isFormVisible && !isLoading && !hasError && (
+        {!isFormVisible && !isLoading && !hasLoadingError && (
           <button
             data-cy="WriteCommentButton"
             type="button"
@@ -110,4 +124,13 @@ export const PostDetails: React.FC<Props> = ({ post }) => {
       )}
     </div>
   );
+};
+
+PostDetails.propTypes = {
+  post: PropTypes.shape({
+    id: PropTypes.number.isRequired,
+    userId: PropTypes.number.isRequired,
+    title: PropTypes.string.isRequired,
+    body: PropTypes.string.isRequired,
+  }).isRequired,
 };

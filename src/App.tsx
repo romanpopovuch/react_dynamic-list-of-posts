@@ -34,6 +34,7 @@ export const App = () => {
   useEffect(() => {
     if (!selectedUser) {
       setPosts([]);
+
       return;
     }
 
@@ -85,10 +86,7 @@ export const App = () => {
                 )}
 
                 {showNoPostsMessage && (
-                  <div
-                    className="notification is-warning"
-                    data-cy="NoPostsYet"
-                  >
+                  <div className="notification is-warning" data-cy="NoPostsYet">
                     No posts yet
                   </div>
                 )}
