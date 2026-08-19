@@ -16,44 +16,50 @@ import { Post } from './types/Post';
 
 export const App = () => {
   const [users, setUsers] = useState<User[]>([]);
+  const [hasUsersError, setHasUsersError] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
-
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [isPostsLoading, setIsPostsLoading] = useState(false);
-  const [postsError, setPostsError] = useState(false);
-
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
 
+  const [postsState, setPostsState] = useState({
+    items: [] as Post[],
+    isLoading: false,
+    hasError: false,
+  });
+
   useEffect(() => {
+    setHasUsersError(false);
     client
       .get<User[]>('/users')
       .then(setUsers)
-      .catch(() => {});
+      .catch(() => setHasUsersError(true));
   }, []);
 
   useEffect(() => {
     if (!selectedUser) {
-      setPosts([]);
+      setPostsState({ items: [], isLoading: false, hasError: false });
+      setSelectedPost(null);
 
       return;
     }
 
-    setIsPostsLoading(true);
-    setPostsError(false);
     setSelectedPost(null);
+    setPostsState({ items: [], isLoading: true, hasError: false });
 
     client
       .get<Post[]>(`/posts?userId=${selectedUser.id}`)
-      .then(setPosts)
-      .catch(() => setPostsError(true))
-      .finally(() => setIsPostsLoading(false));
+      .then(items => {
+        setPostsState({ items, isLoading: false, hasError: false });
+      })
+      .catch(() => {
+        setPostsState({ items: [], isLoading: false, hasError: true });
+      });
   }, [selectedUser]);
 
   const showNoPostsMessage =
     Boolean(selectedUser) &&
-    !isPostsLoading &&
-    !postsError &&
-    posts.length === 0;
+    !postsState.isLoading &&
+    !postsState.hasError &&
+    postsState.items.length === 0;
 
   return (
     <main className="section">
@@ -70,13 +76,22 @@ export const App = () => {
               </div>
 
               <div className="block" data-cy="MainContent">
-                {!selectedUser && (
+                {hasUsersError && (
+                  <div
+                    className="notification is-danger"
+                    data-cy="UsersLoadingError"
+                  >
+                    Unable to load users
+                  </div>
+                )}
+
+                {!selectedUser && !hasUsersError && (
                   <p data-cy="NoSelectedUser">No user selected</p>
                 )}
 
-                {isPostsLoading && <Loader />}
+                {postsState.isLoading && <Loader />}
 
-                {postsError && (
+                {postsState.hasError && (
                   <div
                     className="notification is-danger"
                     data-cy="PostsLoadingError"
@@ -91,9 +106,9 @@ export const App = () => {
                   </div>
                 )}
 
-                {posts.length > 0 && !isPostsLoading && (
+                {postsState.items.length > 0 && !postsState.isLoading && (
                   <PostsList
-                    posts={posts}
+                    posts={postsState.items}
                     selectedPostId={selectedPost?.id || 0}
                     onSelectPost={setSelectedPost}
                   />
@@ -114,7 +129,7 @@ export const App = () => {
               },
             )}
           >
-            <div className="tile is-child box is-success ">
+            <div className="tile is-child box is-success">
               {selectedPost && <PostDetails post={selectedPost} />}
             </div>
           </div>

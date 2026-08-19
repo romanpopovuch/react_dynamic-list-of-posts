@@ -1,5 +1,6 @@
 import React from 'react';
 import classNames from 'classnames';
+import PropTypes from 'prop-types';
 import { Post } from '../types/Post';
 
 interface Props {
@@ -18,11 +19,10 @@ export const PostsList: React.FC<Props> = ({
 
     <table className="table is-fullwidth is-striped is-hoverable is-narrow">
       <thead>
-        <tr className="has-background-link-light">
-          <th>#</th>
+        <tr>
+          <th>ID</th>
           <th>Title</th>
-          {/* eslint-disable-next-line jsx-a11y/control-has-associated-label */}
-          <th> </th>
+          <th className="has-text-right">Actions</th>
         </tr>
       </thead>
 
@@ -53,3 +53,16 @@ export const PostsList: React.FC<Props> = ({
     </table>
   </div>
 );
+
+PostsList.propTypes = {
+  posts: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.number.isRequired,
+      userId: PropTypes.number.isRequired,
+      title: PropTypes.string.isRequired,
+      body: PropTypes.string.isRequired,
+    }).isRequired,
+  ).isRequired,
+  selectedPostId: PropTypes.number.isRequired,
+  onSelectPost: PropTypes.func.isRequired,
+};
